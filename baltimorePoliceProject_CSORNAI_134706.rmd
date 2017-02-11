@@ -1,0 +1,148 @@
+---
+title: "Analysis of Baltimore Police Dept. Stats."
+author: "CSORNAI, Gyula"
+date: "February 11, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#rm(list=ls())
+knitr::opts_chunk$set(echo = FALSE)
+setwd("..\\..\\temp\\rWorkDir")
+getwd()
+library(ggplot2)
+library(pander)
+library(stringr)
+df_orig<- read.csv(".\\ds\\BPD_Arrests.csv")
+
+#########################################
+#global vars
+barPalette <- "Dark2"
+dateFormat <- "%m/%d/%Y"
+#########################################
+
+```
+
+## Project summary
+The goal of this project is to predict the crime situation the police squad needs to face when sent out to the crime scene. 
+
+### Orignal dataset
+https://www.kaggle.com/arathee2/arrests-by-baltimore-police-department 
+
+### Basic statistics of the data
+```{r}
+
+pander(head(summary(df_orig)))
+
+```
+
+### Interpretation of the metadata and preliminary ideas
+Feature|Usability/role
+-------|----------------------------------------------------------------------
+Arrest-ID | ID, not usable for any prediction purpose
+Age |  Only 28 NAs, predictor feature, the NAs may be dropped
+Sex | No NAs, predictor feature
+Race | No NAs, predictor feture
+ArrestDate | Date format this will not be diretly used, my working theory is that day of week, week of year will be used instead, as the actual date does not really count (in my initial model). NOTE: I am ignoring the dependencies between crime scenes.  
+ArrestTime | Observed time, will be used as a predictor, needs some further analysis, whether it has full hours only or minutes as well.  
+ArrestLocation | This is the accurate location, I may restrict my model to the street only, will be used as factor. At the time of the announcement it may not be known, so in this draft model I assume, that the criminal moved a bit and is hiding at a location, that became to be known to the police. I am simplifying this and dropping the option of chasing a criminal from the report scene to the arrest scene.
+IncidentOffense | In most of the cases this is unknown, which is the possible good outcome, as the crime may not be too serious. The rest need to be analyzed.
+IncidentLocation  | Similarly to the arrest location I will use the street only, and I will assume, that by the time of the call for police this is already known.
+Charge | This is unknown at the point of the polica call
+ChargeDescription | Bla
+District | No NAs, predictor feture
+Post | Predictor feture
+Neighborhood | Predictor feture
+Location1(Location Coordinates) | This is the actual location, but I will not use this.
+
+
+## Exploratory data analysis
+
+### Age
+
+The following chart shows the summary statistics and the distribution of the ages.
+
+```{r Age, echo=FALSE}
+df <- subset(df_orig,!is.na(df_orig$Age) )
+zeroAge <- as.numeric(length(subset(df,df$Age == 0)))
+df <- subset(df,df$Age >0 )
+pander(head(summary(df$Age)))
+
+ggplot(df)+aes(x=Age)+
+  geom_histogram(bins=((max(df$Age)-min(df$Age))/5), fill='olivedrab1', col='olivedrab')+
+  xlim(0,max(df$Age))+
+  labs(
+    x="Distribution of age",
+    y="Number of criminals in the category",
+    title="Age distribution of criminals with non-zero age"
+  )+
+  theme_bw()
+```
+### Sex
+
+The following chart shows the summary statistics and the distribution of the sex.
+
+```{r Sex}
+
+pander(table(df$Sex))
+ggplot(df)+aes(x=Sex, fill=Sex)+
+  geom_bar()+
+  labs(
+    x="Distribution of sex",
+    y="Number of criminals in the category",
+    title="Distribution of criminals based on sex"
+  )+
+  scale_fill_brewer(palette="Dark2")+
+  theme_bw()
+```
+
+### Race
+
+The following chart shows the summary statistics and the distribution of the race.
+
+```{r Race}
+pander(table(df$Race))
+
+ggplot(df)+aes(x=Race, fill=Race)+
+  geom_bar()+
+  labs(
+    x="Distribution of race",
+    y="Number of criminals in the category",
+    title="Distribution of criminals based on race"
+  )+
+  scale_fill_brewer(palette=barPalette)+
+  theme_bw()
+```
+
+### Arrest time
+The assumption is that crime details have a dependency on which part of the year and which day of the week it is. Therefore insead of using date, the week of year and day of week were used.
+
+```{r ArrestTime}
+df$ArrestWeekOfYear <- as.numeric(format(strptime(df$ArrestDate,dateFormat),"%V"))
+
+ggplot(df)+aes(x=ArrestWeekOfYear )+
+  geom_bar(fill='olivedrab1', col='olivedrab')+
+  labs(
+    x="week of the year",
+    y="Number of criminals in the category",
+    title="Distribution crime issues per week of year"
+  )+
+  theme_bw()
+
+df$ArrestDayOfWeekNumeric <- as.numeric(format(strptime(df$ArrestDate,dateFormat),"%w"))
+
+df$ArrestDayOfWeek <- as.factor(format(strptime(df$ArrestDate,dateFormat),"%A"))
+
+pander(table(df$ArrestDayOfWeek))
+ggplot(df)+aes(x=ArrestDayOfWeek,fill=ArrestDayOfWeek)+
+  geom_bar()+
+  labs(
+    x="day of week",
+    y="Number of criminals in the category",
+    title="Distribution crime issues per day of week"
+  )+
+  scale_x_discrete(limits=c('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'))+
+  scale_fill_brewer(palette=barPalette)+
+  theme_bw()
+
+```
