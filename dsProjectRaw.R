@@ -372,6 +372,8 @@ df$IncidentLocationPLC <- gsub(" WAY"," WY",df$IncidentLocationPLC)
 df$IncidentLocationHN <- as.factor(df$IncidentLocationHN)
 df$IncidentLocationPLC <- as.factor(df$IncidentLocationPLC)
 
+df<-subset(df, !is.na(df$IncidentLocationHN)&!is.na(df$IncidentLocationPLC)) 
+
 dfm <- df
 dfm$Arrest <- NULL
 dfm$Age <- NULL
@@ -389,10 +391,27 @@ dfm$ArrestLocationLength <- NULL
 dfm$IncidentLocation <- NULL
 dfm$ArrestDate <- NULL
 dfm$DistrictChar <- NULL
+dfm$INCCODE <- as.factor(dfm$incOffCategory)
 dfm$incOffCategory <- NULL
 dfm$ArrestTime <- NULL
 dfm$IncidentOffense <- NULL
 dfm$IncidentOffenseUC <- NULL
+dfm$Neighborhood <- NULL
+dfm$NeighborhoodUC <- NULL
+dfm$ArrestYear <- NULL
+
+ggplot(dfm)+aes(x=IncidentLocationHN)+geom_bar()+theme(axis.text.x=element_text(angle=-90, hjust=0))
+dfm$HNFN <- round(as.numeric(dfm$IncidentLocationHN ) / 10)
+ggplot(dfm)+aes(x=HNFN)+geom_histogram()
+dfm$IncidentLocationHN10 <- as.factor(dfm$HNFN)
+dfm$IncidentLocationHN <- NULL
+dfm$HNFN <- NULL
+dfm$Offense <- dfm$incOffCategoryFactor
+dfm$incOffCategoryFactor <- NULL
+dfm$IncidentLocationPLC <- NULL
+
+table(dfm$NeighborhoodUCF)
+
 
 ggplot(dfm)+aes(x=ArrestWeekOfYear, y=ArrestHour)+
   geom_count(col='indianred')+
@@ -406,14 +425,14 @@ ggplot(dfm)+aes(x=ArrestHour, y=District)+
     title="Distribution of issues in")+
   theme_bw()
 
-ggplot(dfm)+aes(x=ArrestHour, fill=incOffCategoryFactor)+
+ggplot(dfm)+aes(x=ArrestHour, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
   theme_bw()+
   scale_fill_brewer(palette="Set3")
 
-ggplot(dfm)+aes(x=Neighborhood, fill=incOffCategoryFactor)+
+ggplot(dfm)+aes(x=Neighborhood, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
@@ -421,7 +440,7 @@ ggplot(dfm)+aes(x=Neighborhood, fill=incOffCategoryFactor)+
   scale_fill_brewer(palette="Set3")+
   theme(axis.text.x=element_blank())
 
-ggplot(dfm)+aes(x=ArrestWeekOfYear, fill=incOffCategoryFactor)+
+ggplot(dfm)+aes(x=ArrestWeekOfYear, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
@@ -430,10 +449,10 @@ ggplot(dfm)+aes(x=ArrestWeekOfYear, fill=incOffCategoryFactor)+
   scale_fill_brewer(palette="Set3")
 
 
-raredfm <- subset(dfm, dfm$incOffCategoryFactor!="NARCOTICS" & 
-                    dfm$incOffCategoryFactor!="RISK OF ARMS/WEAPONS" &
-                    dfm$incOffCategoryFactor!="OTHER COMMON ISSUES" &
-                    dfm$incOffCategoryFactor!="ROBBERY/BURGLARY")
+raredfm <- subset(dfm, dfm$Offense!="NARCOTICS" & 
+                    dfm$Offense!="RISK OF ARMS/WEAPONS" &
+                    dfm$Offense!="OTHER COMMON ISSUES" &
+                    dfm$Offense!="ROBBERY/BURGLARY")
 
 
 ggplot(raredfm)+aes(x=ArrestWeekOfYear, y=ArrestHour)+
@@ -448,14 +467,14 @@ ggplot(raredfm)+aes(x=ArrestHour, y=District)+
     title="Distribution of issues in")+
   theme_bw()
 
-ggplot(raredfm)+aes(x=ArrestHour, fill=incOffCategoryFactor)+
+ggplot(raredfm)+aes(x=ArrestHour, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
   theme_bw()+
   scale_fill_brewer(palette="Set3")
 
-ggplot(raredfm)+aes(x=Neighborhood, fill=incOffCategoryFactor)+
+ggplot(raredfm)+aes(x=Neighborhood, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
@@ -463,7 +482,7 @@ ggplot(raredfm)+aes(x=Neighborhood, fill=incOffCategoryFactor)+
   scale_fill_brewer(palette="Set3")+
   theme(axis.text.x=element_blank())
 
-ggplot(raredfm)+aes(x=ArrestWeekOfYear, fill=incOffCategoryFactor)+
+ggplot(raredfm)+aes(x=ArrestWeekOfYear, fill=Offense)+
   geom_bar(position = "stack")+
   labs(
     title="Distribution of issues in")+
@@ -475,6 +494,7 @@ ggplot(raredfm)+aes(x=ArrestWeekOfYear, fill=incOffCategoryFactor)+
 
 ### Data munging ends when Rome did
 ## Here comes the modeling and machine learning
+##Planned: RF, GBM, KNN, LogReg, Lasso
 dfm$rndid <-runif(dim(dfm)[1]) 
 dfm <- dfm[order(dfm$rndid),]
 
@@ -482,4 +502,46 @@ dfm <- dfm[order(dfm$rndid),]
 trainS <- dfm[1:(round((dim(dfm)[1])*0.5)),]
 validS <- dfm[(round((dim(dfm)[1])*0.5)+1):(round((dim(dfm)[1])*0.75)),]
 testS <- dfm[(round((dim(dfm)[1])*0.75)+1):(dim(dfm)[1]),]
+
+trainS$rndid <- NULL
+testS$rndid <- NULL
+validS$rndid <- NULL
+trainS$Offense <- NULL
+testS$Offense <- NULL
+validS$Offense <- NULL
+
+#random forest
+#install.packages("randomForest")
+library(randomForest)
+summary(trainS)
+#rfModel <- randomForest(Offense ~ .,data=trainS,ntree=100)
+#ok, so random forest cannot handle more than 53 levels of a category
+#for the moment I need to drop Neiborhood, as that cannot be 
+#coupled with substring of the place, but in this form it cannot be used
+trainS$NeighborhoodUCF <- NULL
+testS$NeighborhoodUCF <- NULL
+validS$NeighborhoodUCF <- NULL
+
+
+
+rfModel <- randomForest(INCCODE ~ .,data=trainS,ntree=100, importance=TRUE)
+?varImpPlot
+summary(rfModel)
+plot(rfModel)
+varImpPlot(rfModel)
+
+
+phat <- predict(rfModel, testS,type="prob")
+phat2 <- predict(rfModel, testS)
+phat2
+?predict
+str(phat)
+
+install.packages("caret")
+library(caret)
+confusionMatrix(data=phat2,
+                reference=testS$INCCODE,
+                positive='yes')
+
+cm = as.matrix(table(Actual = testS$INCCODE, Predicted = phat))
 
