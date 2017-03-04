@@ -1,0 +1,26 @@
+---
+title: "Data Science Term Project"
+author: "CSORNAI, Gyula - 134706"
+date: "March 4, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Requirements
+
+* Choose a publicly available dataset with at least 10,000 records and 10 variables.
+* Do EDA, data cleaning
+* Try several supervised learning methods (and several values for the parameters for each method).
+* Do model selection and evaluation properly (train-test or cross validation etc.) Show various diagnostics (e.g. ROC curve for classification etc.)
+* Discuss which algorithms work best on your data and possibly why.
+* Bonus: Try the algorithms on the raw data without the cleaning. Are the results the same or worse?
+
+## Data and origin
+
+## Exploratory data analysis
+
+## 
+
