@@ -407,13 +407,144 @@ ggplot(cdf)+aes(x=age, y=log(cap_loss+1))+
   )+
   theme_bw()
 
+cdf$fnlwgt <- NULL
+
+#randomizing order of the rows
+cdf$rnd <-runif(nrow(cdf))
+cdf <- cdf[order(cdf$rnd),]
+cdf$rnd <- NULL
+cdfm <- cdf 
+cdfm$lncg <- log(cdfm$cap_gain + 1)
+cdfm$lncl <- log(cdfm$cap_loss + 1)
+cdfm$cap_gain <- NULL
+cdfm$cap_loss <- NULL
+
+#70% training set 30% test set
+train_nolog <- cdf[0:round( nrow(cdf) * 0.7 ),]
+train_log <- cdfm[0:round( nrow(cdfm) * 0.7 ),]
+test_nolog <- cdf[(round( nrow(cdf) * 0.7 )+1) : nrow(cdf),]
+test_log <- cdfm[(round( nrow(cdfm) * 0.7 )+1) : nrow(cdfm),]
 
 
-
-names(df)[names(df)=="X..50K"] <- 'mt50k'
-names(df)
 library(randomForest)
-randomForest(mt50k ~ .,data=df,ntree=100, importance=TRUE)
+#install.packages('ROCR')
+library(ROCR)
+
+#Random forest on no log, 100 trees
+rfmod_t100n <- randomForest(mt50K ~ .,data=train_nolog,ntree=100, importance=TRUE)
+#Model details
+pander(rfmod_t100n)
+
+
+
+#Model validation 
+phat <- predict(rfmod_t100n, test_nolog, type = "prob")[,"1"]
+#Confusion matrix
+pander(table(ifelse(phat>0.5,1,0),test_nolog$mt50K))
+#Error rate
+sum(ifelse(phat>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+#ROC
+rocr_obj <- prediction(phat, test_nolog$mt50K)
+#cutoff vs error rate
+proc <- performance(rocr_obj, "err")
+
+#AUC
+performance(rocr_obj, "auc")@y.values[[1]]    # AUC
+
+
+
+layout(matrix(c(1,2,3,2), 2, 2 , byrow = TRUE),
+       widths=c(1,2))
+#Importance of variables
+varImpPlot(rfmod_t100n, type=2)
+#ROC curve
+plot(performance(rocr_obj, "tpr", "fpr"), colorize=TRUE)
+plot(proc)
+
+d_phat <- data.frame(phat, mt50K = test_nolog$mt50K)
+ggplot(d_phat) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density functions for the predicted values',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+
+
+?randomForest
+
+#Random forest on log, 100 trees
+rfmod_t100l <- randomForest(mt50K ~ .,data=train_log,ntree=100, importance=TRUE)
+#Model details
+pander(rfmod_t100l)
+#Importance of variables
+iplot2 <- varImpPlot(rfmod_t100l, type=2)
+phat2 <- predict(rfmod_t100l, test_log, type = "prob")[,"1"]
+pander(table(ifelse(phat2>0.5,1,0),test_log$mt50K))
+#Error rate
+mod_rf_t100_log_errorrate <- sum(ifelse(phat2>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+#ROC
+rocr_obj2 <- prediction(phat2, test_log$mt50K)
+auc2 <- performance(rocr_obj2, "auc")@y.values[[1]]   
+
+#Random forest on level, 500 trees
+rfmod_t500n <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, importance=TRUE)
+#Model details
+pander(rfmod_t500n)
+#Importance of variables
+iplot3 <- varImpPlot(rfmod_t500n, type=2)
+phat3 <- predict(rfmod_t500n, test_nolog, type = "prob")[,"1"]
+pander(table(ifelse(phat3>0.5,1,0),test_nolog$mt50K))
+#Error rate
+mod_rf_t500_nolog_errorrate <- sum(ifelse(phat3>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+#ROC
+rocr_obj3 <- prediction(phat3, test_nolog$mt50K)
+auc3 <- performance(rocr_obj3, "auc")@y.values[[1]] 
+
+#Random forest on log, 500 trees
+rfmod_t500l <- randomForest(mt50K ~ .,data=train_log,ntree=500, importance=TRUE)
+#Model details
+pander(rfmod_t500l)
+#Importance of variables
+iplot4 <- varImpPlot(rfmod_t500l, type=2)
+phat4 <- predict(rfmod_t500l, test_log, type = "prob")[,"1"]
+pander(table(ifelse(phat4>0.5,1,0),test_log$mt50K))
+#Error rate
+mod_rf_t500_log_errorrate <- sum(ifelse(phat4>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+#ROC
+rocr_obj4 <- prediction(phat4, test_log$mt50K)
+auc4 <- performance(rocr_obj4, "auc")@y.values[[1]]
+
+#Random forest on level, 500 trees, 5 variables
+rfmod_t500n5 <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, mtry=5, importance=TRUE)
+#Model details
+pander(rfmod_t500n5)
+#Importance of variables
+iplot5 <- varImpPlot(rfmod_t500n5, type=2)
+phat5 <- predict(rfmod_t500n5, test_nolog, type = "prob")[,"1"]
+pander(table(ifelse(phat5>0.5,1,0),test_nolog$mt50K))
+#Error rate
+mod_rf_t500_nolog_var5_errorrate <- sum(ifelse(phat5>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+#ROC
+rocr_obj5 <- prediction(phat5, test_nolog$mt50K)
+auc5 <- performance(rocr_obj5, "auc")@y.values[[1]] 
+
+#Random forest on log, 500 trees, 5 variables
+rfmod_t500l5 <- randomForest(mt50K ~ .,data=train_log,ntree=500, mtry=5, importance=TRUE)
+#Model details
+pander(rfmod_t500l5)
+#Importance of variables
+iplot6 <- varImpPlot(rfmod_t500l5, type=2)
+phat6 <- predict(rfmod_t500l5, test_log, type = "prob")[,"1"]
+pander(table(ifelse(phat5>0.5,1,0),test_log$mt50K))
+#Error rate
+mod_rf_t500_log_var5_errorrate <- sum(ifelse(phat6>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+#ROC
+rocr_obj6 <- prediction(phat6, test_log$mt50K)
+auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
+
 
 
 install.packages('gbm')

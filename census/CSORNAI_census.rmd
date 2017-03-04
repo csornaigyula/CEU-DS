@@ -17,6 +17,14 @@ classoption: landscape
 * Discuss which algorithms work best on your data and possibly why.
 * Bonus: Try the algorithms on the raw data without the cleaning. Are the results the same or worse?
 
+## Submitted modeling plan
+
+* RF 
+* GBM
+* KNN
+* LogReg
+* Lasso
+
 ## Data and origin
 
 ### Data description and relevance
@@ -562,9 +570,271 @@ $$ lncl = log(caploss+1) $$
 
 in order to normalize the distribution of the values. This is not a fundamental error, because the majority of the observed citizens have 0 capital gain and 0 capital loss, and whoever has some, has so much, that 1 USD per annum does not really count.
 
+From this point on I will analyze the 2 versions separately, until I can figure it out, whether this transformation has helped or not.
+
+```{r eda_fteng_inc, echo=TRUE}
+cdf$fnlwgt <- NULL
+cdf$rnd <-runif(nrow(cdf))
+cdf <- cdf[order(cdf$rnd),]
+cdf$rnd <- NULL
+cdfm <- cdf 
+cdfm$lncg <- log(cdfm$cap_gain + 1)
+cdfm$lncl <- log(cdfm$cap_loss + 1)
+cdfm$cap_gain <- NULL
+cdfm$cap_loss <- NULL
+
+
+```
+
+
 ## Supervised learning methods
 
+```{r model_setup,echo=FALSE, warning=FALSE, include=FALSE, error=FALSE}
+
+library(randomForest)
+#install.packages('ROCR')
+library(ROCR)
+#70% training set 30% test set
+train_nolog <- cdf[0:round( nrow(cdf) * 0.7 ),]
+train_log <- cdfm[0:round( nrow(cdfm) * 0.7 ),]
+test_nolog <- cdf[(round( nrow(cdf) * 0.7 )+1) : nrow(cdf),]
+test_log <- cdfm[(round( nrow(cdfm) * 0.7 )+1) : nrow(cdfm),]
+
+
+```
+
+### Analysis with Random forest
+
+#### Modeling with 100 trees
+
+##### Model details
+
+The following chart shows the model details. The confusion matrix is not very descriptive, as it shows accuracy on the training set. 
+
+I acknowledge, that classification error is very low, in case the model predicts lower annual wage, than 50,000 USD, and it is significantly high, in case it tries to predict higher wage, than 50,000 USD. OBB estimate of error rate is relatively low.
+
+```{r mod_rf_t100_smry, echo=FALSE}
+
+#Random forest on no log, 100 trees
+rfmod_t100n <- randomForest(mt50K ~ .,data=train_nolog,ntree=100, importance=TRUE)
+#Model details
+pander(rfmod_t100n)
+
+```
+
+##### Model accuracy
+
+```{r mod_rf_t100_acc, echo=FALSE, warning=FALSE}
+#Model validation 
+phat <- predict(rfmod_t100n, test_nolog, type = "prob")[,"1"]
+#Error rate
+error_rate_rf_t100 <- sum(ifelse(phat>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+
+```
+
+Confusion matrix below shows, that the actual prediction on the training set is relatively good: the total error rate is `r error_rate_rf_t100*100`%.
+
+```{r mod_rf_t100_confm,echo=FALSE, warning=FALSE}
+
+#Confusion matrix
+pander(table(ifelse(phat>0.5,1,0),test_nolog$mt50K))
+
+```
+
+```{r mod_rf_t100_dtl, echo=FALSE, warning=FALSE}
+
+#ROC
+rocr_obj <- prediction(phat, test_nolog$mt50K)
+#cutoff vs error rate
+proc <- performance(rocr_obj, "err")
+
+#AUC
+rf_t100_auc <- performance(rocr_obj, "auc")@y.values[[1]]    # AUC
+```
+
+The following charts show the details of the modeling with random forest.
+The importance of the variable chart (left upper corner) shows, that the most important predictors are 
+
+* relationship 
+* capital gain (level!)
+* occupation
+
+variables.
+The least important are:
+
+* race
+* sex
+* original country where citizen came from.
+
+The AUC is `r rf_t100_auc`, which is an acceptable model.
+
+```{r mod_rf_t100_viz, echo=FALSE, warning=FALSE, fig.width=10, fig.height=8}
+
+layout(matrix(c(1,2,3,2), 2, 2 , byrow = TRUE),
+       widths=c(1,2))
+#Importance of variables
+varImpPlot(rfmod_t100n, type=2)
+#ROC curve
+plot(performance(rocr_obj, "tpr", "fpr"), colorize=TRUE)
+plot(proc)
+
+```
+
+#### Modeling multiple random forest model versions
+
+```{r mod_rf_variants, echo=FALSE}
+
+#Random forest on log, 100 trees
+rfmod_t100l <- randomForest(mt50K ~ .,data=train_log,ntree=100, importance=TRUE)
+phat2 <- predict(rfmod_t100l, test_log, type = "prob")[,"1"]
+mod_rf_t100_log_errorrate <- sum(ifelse(phat2>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+rocr_obj2 <- prediction(phat2, test_log$mt50K)
+auc2 <- performance(rocr_obj2, "auc")@y.values[[1]]   
+
+#Random forest on level, 500 trees
+rfmod_t500n <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, importance=TRUE)
+phat3 <- predict(rfmod_t500n, test_nolog, type = "prob")[,"1"]
+mod_rf_t500_nolog_errorrate <- sum(ifelse(phat3>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+rocr_obj3 <- prediction(phat3, test_nolog$mt50K)
+auc3 <- performance(rocr_obj3, "auc")@y.values[[1]] 
+
+#Random forest on log, 500 trees
+rfmod_t500l <- randomForest(mt50K ~ .,data=train_log,ntree=500, importance=TRUE)
+phat4 <- predict(rfmod_t500l, test_log, type = "prob")[,"1"]
+mod_rf_t500_log_errorrate <- sum(ifelse(phat4>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+rocr_obj4 <- prediction(phat4, test_log$mt50K)
+auc4 <- performance(rocr_obj4, "auc")@y.values[[1]]
+
+#Random forest on level, 500 trees, 5 variables
+rfmod_t500n5 <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, mtry=5, importance=TRUE)
+phat5 <- predict(rfmod_t500n5, test_nolog, type = "prob")[,"1"]
+mod_rf_t500_nolog_var5_errorrate <- sum(ifelse(phat5>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+rocr_obj5 <- prediction(phat5, test_nolog$mt50K)
+auc5 <- performance(rocr_obj5, "auc")@y.values[[1]] 
+
+#Random forest on log, 500 trees, 5 variables
+rfmod_t500l5 <- randomForest(mt50K ~ .,data=train_log,ntree=500, mtry=5, importance=TRUE)
+phat6 <- predict(rfmod_t500l5, test_log, type = "prob")[,"1"]
+mod_rf_t500_log_var5_errorrate <- sum(ifelse(phat6>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
+rocr_obj6 <- prediction(phat6, test_log$mt50K)
+auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
+
+```
+
+##### Comparison chart
+
+|Model version / Performance          |Error rate                                 |AUC             |
+|:-----------------------------------:|:-----------------------------------------:|:--------------:|
+|RF, ntree=100, cap.level, variable=3 |`r error_rate_rf_t100*100`%                |`r rf_t100_auc` |
+|RF, ntree=100, cap.log, variable=3   |`r mod_rf_t100_log_errorrate*100`%         |`r auc2`        |
+|RF, ntree=500, cap.level, variable=3 |`r mod_rf_t500_nolog_errorrate*100`%       |`r auc3`        |
+|RF, ntree=500, cap.log, variable=3   |`r mod_rf_t500_log_errorrate*100`%         |`r auc4`        |
+|RF, ntree=500, cap.level, variable=4 |`r mod_rf_t500_nolog_var5_errorrate*100`%  |`r auc5`        |
+|RF, ntree=500, cap.log, variable=4   |`r mod_rf_t500_log_var5_errorrate*100`%    |`r auc6`        |
+
+
+##### Kernel density functions
+
+```{r mod_rf_variants_kd, echo=FALSE, fig.width=10, fig.height=8}
+
+d_phat <- data.frame(phat, mt50K = test_nolog$mt50K)
+kdplot1 <- ggplot(d_phat) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t100_v3_level',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+d_phat2 <- data.frame(phat2, mt50K = test_log$mt50K)
+kdplot2 <- ggplot(d_phat2) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t100_v3_log',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+d_phat3 <- data.frame(phat3, mt50K = test_nolog$mt50K)
+kdplot3 <- ggplot(d_phat3) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t500_v3_level',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+d_phat4 <- data.frame(phat4, mt50K = test_log$mt50K)
+kdplot4 <- ggplot(d_phat4) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t500_v3_log',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+d_phat5 <- data.frame(phat5, mt50K = test_nolog$mt50K)
+kdplot5 <- ggplot(d_phat5) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t500_v5_level',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+d_phat6 <- data.frame(phat6, mt50K = test_log$mt50K)
+kdplot6 <- ggplot(d_phat6) +
+  geom_density( aes(x = phat, fill = mt50K, col=mt50K), alpha=0.4)+
+  labs(
+    title='Kernel density - RF_t500_v5_log',
+    x='Score',
+    y='Density'
+  )+
+  theme_bw()
+
+multiplot(kdplot1, kdplot2, kdplot3, kdplot4, kdplot5, kdplot6, cols = 3)
+
+```
+
+##### Importance of variables
+
+
+```{r mod_rf_variants_imp, echo=FALSE, fig.width=10, fig.height=8}
+par(mfrow=c(2,3))
+varImpPlot(rfmod_t100n, type=2)
+varImpPlot(rfmod_t100l, type=2)
+varImpPlot(rfmod_t500n, type=2)
+varImpPlot(rfmod_t500l, type=2)
+varImpPlot(rfmod_t500n5, type=2)
+varImpPlot(rfmod_t500l5, type=2)
+
+
+```
+
+#### Conclusion for Random Forest
+
+* The Random Forest algorythm gives acceptable quality, roboust results for all parameters.
+* It does not really matter whether I use log or level value of capital gain
+* In all versions the 2 major performance descriptors (error rate and AUC) were very close for each versions
+* There is no visual difference in the kernel density functions
+* All versions highlighted the same 3 variables as the most important, and the same 3 as the least important, only the importance was slightly different
+
+### Analysis with GBM
+
+### Analysis with KNN
+
+### Composite models
+
 ## Model selection and validation
+
+### LogReg
+
+### Lasso
 
 ## Discussion of effectiveness
 
