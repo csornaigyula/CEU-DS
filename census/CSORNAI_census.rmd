@@ -826,6 +826,44 @@ varImpPlot(rfmod_t500l5, type=2)
 
 ### Analysis with GBM
 
+Before modeling it is important to transform the output variable to number, because GBM can use numbers only.
+
+```{r setup_gbm, echo=FALSE, include=FALSE, warning=FALSE}
+
+library(gbm)
+train_nolog$mt50K <- ifelse(train_nolog$mt50K==1, 1, 0)
+test_nolog$mt50K <- ifelse(test_nolog$mt50K==1, 1, 0) 
+
+```
+
+#### Primary model
+
+The primary model uses the following parameters:
+
+* Number of trees = 100 
+* interaction depth = 10
+* shrinkage = 0.01 
+* cv.folds = 5
+
+##### Confusion matrix
+
+```{r gbm_primary_confmat, echo=FALSE, warning=FALSE}
+gbm100t <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli",
+          n.trees = 100, interaction.depth = 10, shrinkage = 0.01, cv.folds = 5)
+
+yhat <- predict(gbm100t, test_nolog, n.trees = 100) 
+
+pander(table(ifelse(yhat>0,1,0), test_nolog$mt50K))
+
+```
+
+##### Learning curve
+
+```{r gbm_promary_pcurve, echo=FALSE, warning=FALSE}
+gbm.perf(gbm100t, plot.it = TRUE)
+
+```
+
 ### Analysis with KNN
 
 ### Composite models

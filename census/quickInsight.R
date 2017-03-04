@@ -547,13 +547,22 @@ auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
 
 
 
-install.packages('gbm')
+
 library(gbm)
-df$isMT50k <- ifelse(df$mt50k == '<=50K',1,0)
-head(subsetdf)
-df$mt50k <- NULL
-gbm <- gbm(isMT50k ~ .,data=df, distribution = "bernoulli",
-          n.trees = 100, interaction.depth = 10, shrinkage = 0.01)
+train_nolog$mt50K <- ifelse(train_nolog$mt50K==1, 1, 0)
+test_nolog$mt50K <- ifelse(test_nolog$mt50K==1, 1, 0) 
+gbm100t <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli",
+          n.trees = 100, interaction.depth = 10, shrinkage = 0.01, cv.folds = 5)
+
+yhat <- predict(gbm100t, test_nolog, n.trees = 100) 
+
+summary(yhat)
+table(ifelse(yhat>0,1,0), test_nolog$mt50K)
+gbm.perf(gbm100t, plot.it = TRUE)
+
+args(gbm)
+
+
 install.packages('e1071')
 library(e1071)
 md <- svm(isMT50k ~ ., data = df,
