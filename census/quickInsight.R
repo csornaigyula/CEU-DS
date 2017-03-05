@@ -591,7 +591,7 @@ gbm_500_20_0001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli"
 yhat8 <- predict(gbm_500_20_0001_5, test_nolog, n.trees = 500) 
 t8<- table(ifelse(yhat8>0,1,0), test_nolog$mt50K)
 
-
+#throws error in mrarkdown, leaving out 
 par(mfrow=c(2,3))
 gbm.perf(gbm_p1, plot.it = TRUE)
 gbm.perf(gbm_500_10_001_5, plot.it = TRUE)
@@ -600,12 +600,75 @@ gbm.perf(gbm_500_20_001_5, plot.it = TRUE)
 gbm.perf(gbm_500_10_0001_5, plot.it = TRUE)
 gbm.perf(gbm_500_20_0001_5, plot.it = TRUE)
 
-?gbm.perf
 
-par(mfrow=c(1,1))
+## Checking some cross validation effects too
+gbm_500_10_001_1 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 10, shrinkage = 0.01, cv.folds = 1)
+yhat11 <- predict(gbm_500_10_001_1, test_nolog, n.trees = 500) 
+t11<- table(ifelse(yhat11>0,1,0), test_nolog$mt50K)
 
-install.packages('e1071')
-library(e1071)
-md <- svm(isMT50k ~ ., data = df,
-          kernel = "radial", gamma = 'default', cost = 1)
-?svm
+gbm_500_10_001_10 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 10, shrinkage = 0.01, cv.folds = 10)
+yhat12 <- predict(gbm_500_10_001_10, test_nolog, n.trees = 500) 
+t12<- table(ifelse(yhat12>0,1,0), test_nolog$mt50K)
+
+gbm_500_10_001_3 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                         interaction.depth = 10, shrinkage = 0.01, cv.folds = 3)
+yhat13 <- predict(gbm_500_10_001_3, test_nolog, n.trees = 500) 
+t13<- table(ifelse(yhat12>0,1,0), test_nolog$mt50K)
+
+
+
+gbm_500_20_001_1 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 20, shrinkage = 0.01, cv.folds = 1)
+yhat21 <- predict(gbm_500_20_001_1, test_nolog, n.trees = 500) 
+t21<- table(ifelse(yhat21>0,1,0), test_nolog$mt50K)
+
+gbm_500_20_001_3 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 20, shrinkage = 0.01, cv.folds = 3)
+yhat22 <- predict(gbm_500_20_001_3, test_nolog, n.trees = 500) 
+t22<- table(ifelse(yhat21>0,1,0), test_nolog$mt50K)
+
+t11
+t12
+t21
+t22
+t4
+
+?gbm
+
+library(class)
+?knn
+str(train_nolog$mt50K)
+train_nolog$mt50K <- as.factor(train_nolog$mt50K)
+test_nolog$mt50K <- as.factor(test_nolog$mt50K)
+
+cdf2 <- cdf
+
+cdf2$work_class <- as.numeric(cdf2$work_class)
+cdf2$education <- as.numeric(cdf2$education )
+cdf2$mar_stat <- as.numeric(cdf2$mar_stat)
+cdf2$occupation <- as.numeric(cdf2$occupation)
+cdf2$relationship <- as.numeric(cdf2$relationship)
+cdf2$race <- as.numeric(cdf2$race)
+cdf2$sex <- as.numeric(cdf2$sex)
+cdf2$nat_ctry <- as.numeric(cdf2$nat_ctry)
+cdf2$rnd <- NULL
+
+train_nolog2 <- cdf2[0:round( nrow(cdf2) * 0.7 ),]
+test_nolog2 <- cdf2[(round( nrow(cdf2) * 0.7 )+1) : nrow(cdf2),]
+
+
+
+
+fit2 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 2, prob=TRUE)
+pander(table(test_nolog2$mt50K,fit2))
+
+fit7 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 7, prob=TRUE)
+pander(table(test_nolog2$mt50K,fit7))
+
+fit13 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 13, prob=TRUE)
+t13nn <- table(test_nolog2$mt50K,fit13)
+pander()
+
+(t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100

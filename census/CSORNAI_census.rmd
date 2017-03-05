@@ -682,7 +682,7 @@ plot(proc)
 
 #### Modeling multiple random forest model versions
 
-```{r mod_rf_variants, echo=FALSE}
+```{r mod_rf_variants1, echo=FALSE}
 
 #Random forest on log, 100 trees
 rfmod_t100l <- randomForest(mt50K ~ .,data=train_log,ntree=100, importance=TRUE)
@@ -691,27 +691,41 @@ mod_rf_t100_log_errorrate <- sum(ifelse(phat2>0.5,1,0)!=test_log$mt50K)/nrow(tes
 rocr_obj2 <- prediction(phat2, test_log$mt50K)
 auc2 <- performance(rocr_obj2, "auc")@y.values[[1]]   
 
+```
+
+```{r mod_rf_variants2, echo=FALSE}
 #Random forest on level, 500 trees
 rfmod_t500n <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, importance=TRUE)
 phat3 <- predict(rfmod_t500n, test_nolog, type = "prob")[,"1"]
 mod_rf_t500_nolog_errorrate <- sum(ifelse(phat3>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
 rocr_obj3 <- prediction(phat3, test_nolog$mt50K)
 auc3 <- performance(rocr_obj3, "auc")@y.values[[1]] 
+```
 
+```{r mod_rf_variants3, echo=FALSE}
 #Random forest on log, 500 trees
 rfmod_t500l <- randomForest(mt50K ~ .,data=train_log,ntree=500, importance=TRUE)
 phat4 <- predict(rfmod_t500l, test_log, type = "prob")[,"1"]
 mod_rf_t500_log_errorrate <- sum(ifelse(phat4>0.5,1,0)!=test_log$mt50K)/nrow(test_log)
 rocr_obj4 <- prediction(phat4, test_log$mt50K)
 auc4 <- performance(rocr_obj4, "auc")@y.values[[1]]
+```
 
+```{r mod_rf_variants3Btable, echo=FALSE}
+
+rft3<-table(ifelse(phat4>0.5,1,0), test_nolog$mt50K)
+```
+
+```{r mod_rf_variants4, echo=FALSE}
 #Random forest on level, 500 trees, 5 variables
 rfmod_t500n5 <- randomForest(mt50K ~ .,data=train_nolog,ntree=500, mtry=5, importance=TRUE)
 phat5 <- predict(rfmod_t500n5, test_nolog, type = "prob")[,"1"]
 mod_rf_t500_nolog_var5_errorrate <- sum(ifelse(phat5>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
 rocr_obj5 <- prediction(phat5, test_nolog$mt50K)
 auc5 <- performance(rocr_obj5, "auc")@y.values[[1]] 
+```
 
+```{r mod_rf_variants5, echo=FALSE}
 #Random forest on log, 500 trees, 5 variables
 rfmod_t500l5 <- randomForest(mt50K ~ .,data=train_log,ntree=500, mtry=5, importance=TRUE)
 phat6 <- predict(rfmod_t500l5, test_log, type = "prob")[,"1"]
@@ -729,11 +743,13 @@ auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
 |RF, ntree=100, cap.log, variable=3   |`r mod_rf_t100_log_errorrate*100`%         |`r auc2`        |
 |RF, ntree=500, cap.level, variable=3 |`r mod_rf_t500_nolog_errorrate*100`%       |`r auc3`        |
 |RF, ntree=500, cap.log, variable=3   |`r mod_rf_t500_log_errorrate*100`%         |`r auc4`        |
-|RF, ntree=500, cap.level, variable=4 |`r mod_rf_t500_nolog_var5_errorrate*100`%  |`r auc5`        |
-|RF, ntree=500, cap.log, variable=4   |`r mod_rf_t500_log_var5_errorrate*100`%    |`r auc6`        |
+|RF, ntree=500, cap.level, variable=5 |`r mod_rf_t500_nolog_var5_errorrate*100`%  |`r auc5`        |
+|RF, ntree=500, cap.log, variable=5   |`r mod_rf_t500_log_var5_errorrate*100`%    |`r auc6`        |
 
 
 ##### Kernel density functions
+
+The kernel density functions show the probability density of the 2 predictions based on scores.
 
 ```{r mod_rf_variants_kd, echo=FALSE, fig.width=10, fig.height=8}
 
@@ -928,16 +944,134 @@ t8<- table(ifelse(yhat8>0,1,0), test_nolog$mt50K)
 |gbm_100_20_0001_5|100  |20                |0.001    |5       |6763       |2286       |NA         |NA         |No positive results                        |
 |gbm_500_20_0001_5|500  |20                |0.001    |5       |`r t8[1,1]`|`r t8[1,2]`|`r t8[2,1]`|`r t8[2,2]`|`r (t8[1,2]+t8[2,1])/nrow(test_nolog)*100`%|
 
+##### Changing cross validation parameters
+
+```{r gbm_crossval_eff01, echo=FALSE}
+gbm_500_20_001_1 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 20, shrinkage = 0.01, cv.folds = 1)
+yhat11 <- predict(gbm_500_20_001_1, test_nolog, n.trees = 500) 
+t11<- table(ifelse(yhat11>0,1,0), test_nolog$mt50K)
+
+```
+
+
+```{r gbm_crossval_eff02, echo=FALSE}
+gbm_500_20_001_10 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                        interaction.depth = 20, shrinkage = 0.01, cv.folds = 10)
+yhat12 <- predict(gbm_500_20_001_10, test_nolog, n.trees = 500) 
+t12<- table(ifelse(yhat12>0,1,0), test_nolog$mt50K)
+```
+
+```{r gbm_crossval_eff03, echo=FALSE}
+gbm_500_20_001_3 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
+                         interaction.depth = 20, shrinkage = 0.01, cv.folds = 3)
+yhat13 <- predict(gbm_500_20_001_3, test_nolog, n.trees = 500) 
+t13<- table(ifelse(yhat12>0,1,0), test_nolog$mt50K)
+```
+
+The following chart shows the impact of changing the folds of cross validation for the best model.
+|ModelID        |Number of trees|Depth of each tree|Shrinkage|CV folds|Result TN  |Result FN  |Result FP  |Result TP  |Error rate                                 |
+|:-------------:|:-------------:|:----------------:|:-------:|:------:|:---------:|:---------:|:---------:|:---------:|:-----------------------------------------:|
+|gbm_500_20_001_5|500           |20                |0.01     |5       |`r t4[1,1]`|`r t4[1,2]`|`r t4[2,1]`|`r t4[2,2]`|`r (t4[1,2]+t4[2,1])/nrow(test_nolog)*100`%|
+|gbm_500_20_001_1|500           |20                |0.01     |1 |`r t11[1,1]`|`r t11[1,2]`|`r t11[2,1]`|`r t11[2,2]`|`r (t11[1,2]+t11[2,1])/nrow(test_nolog)*100`%|
+|gbm_500_20_001_10|500          |20                |0.01     |10|`r t12[1,1]`|`r t12[1,2]`|`r t12[2,1]`|`r t12[2,2]`|`r (t12[1,2]+t12[2,1])/nrow(test_nolog)*100`%|
+|gbm_500_20_001_3|500           |20                |0.01     |3 |`r t13[1,1]`|`r t13[1,2]`|`r t13[2,1]`|`r t13[2,2]`|`r (t13[1,2]+t13[2,1])/nrow(test_nolog)*100`%|
 
 ### Analysis with KNN
 
+K-NearestNeighbour classification algorythm is a bit different from the tree models above, because it can handle only numeric input vectors. It uses Eucledian distance measure thereafter to calculate the "distance of the neighborhood".
+From the other side it uses a factor for classification.
+
+```{r knn_setup, echo=FALSE, warning=FALSE}
+
+library(class)
+train_nolog$mt50K <- as.factor(train_nolog$mt50K)
+test_nolog$mt50K <- as.factor(test_nolog$mt50K)
+
+cdf2 <- cdf
+
+cdf2$work_class <- as.numeric(cdf2$work_class)
+cdf2$education <- as.numeric(cdf2$education )
+cdf2$mar_stat <- as.numeric(cdf2$mar_stat)
+cdf2$occupation <- as.numeric(cdf2$occupation)
+cdf2$relationship <- as.numeric(cdf2$relationship)
+cdf2$race <- as.numeric(cdf2$race)
+cdf2$sex <- as.numeric(cdf2$sex)
+cdf2$nat_ctry <- as.numeric(cdf2$nat_ctry)
+cdf2$rnd <- NULL
+
+train_nolog2 <- cdf2[0:round( nrow(cdf2) * 0.7 ),]
+test_nolog2 <- cdf2[(round( nrow(cdf2) * 0.7 )+1) : nrow(cdf2),]
+```
 
 
-## Model selection and validation
+### 2-NN
 
-### Composite models
+The following table shows the confusion matrix, using the same (but transformed) train and test sets, using the 2 nearest neighbors for prediction.
+
+```{r knn_2nn, echo=FALSE, warning=FALSE}
+fit2 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 2, prob=TRUE)
+t2nn <- table(test_nolog2$mt50K,fit2)
+pander(t2nn)
+```
+
+### 7-NN
+
+The following table shows the confusion matrix, using the same (but transformed) train and test sets, using the 7 nearest neighbors for prediction.
+
+```{r knn_7nn, echo=FALSE, warning=FALSE}
+fit7 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 7, prob=TRUE)
+t7nn <- table(test_nolog2$mt50K,fit7)
+pander(t7nn)
+```
+
+
+### 13-NN
+
+The following table shows the confusion matrix, using the same (but transformed) train and test sets, using the 13 nearest neighbors for prediction.
+
+
+```{r knn_13nn, echo=FALSE, warning=FALSE}
+fit13 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 13, prob=TRUE)
+t13nn <- table(test_nolog2$mt50K,fit13)
+pander(t13nn)
+
+```
+
+### Conclusion of KNN modeling
+
+The following chart shows the results of the models. 2 neighbours show a higher error rate, however there is small difference between 7 and 13 neighbors. On this specific database KNN algorythm has produced surprisingly good results, despite of the fact that there was no real feature engineering and analysis how the distances between factor levels translate to Eucledian distance.
+
+|Number of neighbors|Result TN     |Result FN     |Result FP    |Result TP    |Error rate                                      |
+|:-----------------:|:------------:|:------------:|:-----------:|:-----------:|:----------------------------------------------:|
+|2                  |`r t2nn[1,1]` |`r t2nn[1,1]` |`r t2nn[1,1]`|`r t2nn[1,1]`|`r (t2nn[1,2]+t2nn[2,1])/nrow(test_nolog)*100`% |
+|7                  |`r t7nn[1,1]` |`r t7nn[1,1]` |`r t7nn[1,1]`|`r t7nn[1,1]`|`r (t7nn[1,2]+t7nn[2,1])/nrow(test_nolog)*100`% |
+|13                 |`r t13nn[1,1]`|`r t13nn[1,1]`|`r t13nn[1,1]`|`r t13nn[1,1]`|`r (t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100`% |
+
+## Model selection
+
+* All 3 models have produced relatively good resutls during the modeling on this classification use-case on this dataset
+* GBM with appropriate parametering has performed a little better in terms of error rate
+* My GBM and Random forest models have produced more false positives, KNN has produced more false negatives in general
+* The model selection would depend on the use case, specifically
+  + The expected true positive/false positive ratio
+  + The cost of false positive vs false negative 
+  + The environment where the prediction needs to be executed
+  
+|Best model of genere with parameters       |Error rate                         |FN/FP ratio            |TP/FP ratio             |
+|:-----------------------------------------:|:---------------------------------:|:---------------------:|:----------------------:|
+|RF, ntree=500, cap.log, variable=3         |`r mod_rf_t500_log_errorrate*100`% |`r rft3[1,2]/rft3[2,1]`|`r rft3[2,2]/rft3[2,1]` |
+|GBM, ntree=500, int.depth=20, shrinkage=0.01, cv =5fold|`r (t4[1,2]+t4[2,1])/nrow(test_nolog)*100`%|`r t4[1,2]/t4[2,1]`|`r t4[2,2]/t4[2,1]` |
+|KNN, n=13         |`r (t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100`%  |`r t13nn[1,2]/t13nn[2,1]`|`r t13nn[2,2]/t7nn[2,1]` |
+
 
 ## Discussion of effectiveness
+
+* Random forest was a bit inaccurate, but was able to run on the dataset without issues (note: no factors have exceeded 53, which is RF limitation)
+* GBM was the most accurate, but the cost was more feature engineering and in some cases model was not able to predict positive outcome
+* KNN was the fastest to give results, but I did not run into issues with the distance measures
+
+
 
 
 
