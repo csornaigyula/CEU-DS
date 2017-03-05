@@ -545,7 +545,7 @@ mod_rf_t500_log_var5_errorrate <- sum(ifelse(phat6>0.5,1,0)!=test_log$mt50K)/nro
 rocr_obj6 <- prediction(phat6, test_log$mt50K)
 auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
 
-
+set.seed(123)
 
 
 library(gbm)
@@ -555,13 +555,54 @@ gbm100t <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli",
           n.trees = 100, interaction.depth = 10, shrinkage = 0.01, cv.folds = 5)
 
 yhat <- predict(gbm100t, test_nolog, n.trees = 100) 
-
 summary(yhat)
-table(ifelse(yhat>0,1,0), test_nolog$mt50K)
-gbm.perf(gbm100t, plot.it = TRUE)
+t<- table(ifelse(yhat>0,1,0), test_nolog$mt50K)
+str(t)
+t[1,1]
+t[2,2]
+gbm_perf_p1 <- gbm.perf(gbm100t, plot.it = TRUE)
 
-args(gbm)
+gbm_500_10_001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, interaction.depth = 10, shrinkage = 0.01, cv.folds = 5)
+yhat2 <- predict(gbm_500_10_001_5, test_nolog, n.trees = 500) 
+t2<- table(ifelse(yhat2>0,1,0), test_nolog$mt50K)
 
+gbm_100_20_001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 100, interaction.depth = 20, shrinkage = 0.01, cv.folds = 5)
+yhat3 <- predict(gbm_100_20_001_5, test_nolog, n.trees = 100) 
+t3<- table(ifelse(yhat3>0,1,0), test_nolog$mt50K)
+
+gbm_500_20_001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, interaction.depth = 20, shrinkage = 0.01, cv.folds = 5)
+yhat4 <- predict(gbm_500_20_001_5, test_nolog, n.trees = 500) 
+t4<- table(ifelse(yhat4>0,1,0), test_nolog$mt50K)
+
+#gbm_100_10_0001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 100, interaction.depth = 10, shrinkage = 0.001, cv.folds = 5)
+#yhat5 <- predict(gbm_100_10_0001_5, test_nolog, n.trees = 100) 
+#t5<- table(ifelse(yhat5>0,1,0), test_nolog$mt50K)
+#t5 #no positive findings
+
+gbm_500_10_0001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, interaction.depth = 10, shrinkage = 0.001, cv.folds = 5)
+yhat6 <- predict(gbm_500_10_0001_5, test_nolog, n.trees = 500) 
+t6<- table(ifelse(yhat6>0,1,0), test_nolog$mt50K)
+
+#gbm_100_20_0001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 100, interaction.depth = 20, shrinkage = 0.001, cv.folds = 5)
+#yhat7 <- predict(gbm_100_20_0001_5, test_nolog, n.trees = 100) 
+#t7<- table(ifelse(yhat7>0,1,0), test_nolog$mt50K)
+
+gbm_500_20_0001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, interaction.depth = 20, shrinkage = 0.001, cv.folds = 5)
+yhat8 <- predict(gbm_500_20_0001_5, test_nolog, n.trees = 500) 
+t8<- table(ifelse(yhat8>0,1,0), test_nolog$mt50K)
+
+
+par(mfrow=c(2,3))
+gbm.perf(gbm_p1, plot.it = TRUE)
+gbm.perf(gbm_500_10_001_5, plot.it = TRUE)
+gbm.perf(gbm_100_20_001_5, plot.it = TRUE)
+gbm.perf(gbm_500_20_001_5, plot.it = TRUE)
+gbm.perf(gbm_500_10_0001_5, plot.it = TRUE)
+gbm.perf(gbm_500_20_0001_5, plot.it = TRUE)
+
+?gbm.perf
+
+par(mfrow=c(1,1))
 
 install.packages('e1071')
 library(e1071)
