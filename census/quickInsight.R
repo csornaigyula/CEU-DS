@@ -557,10 +557,10 @@ gbm100t <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli",
 yhat <- predict(gbm100t, test_nolog, n.trees = 100) 
 summary(yhat)
 t<- table(ifelse(yhat>0,1,0), test_nolog$mt50K)
-str(t)
-t[1,1]
-t[2,2]
+
 gbm_perf_p1 <- gbm.perf(gbm100t, plot.it = TRUE)
+rocr_obj_gbm1 <- prediction(yhat, test_nolog$mt50K)
+auc_gbm1 <- performance(rocr_obj_gbm1, "auc")@y.values[[1]]
 
 gbm_500_10_001_5 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, interaction.depth = 10, shrinkage = 0.01, cv.folds = 5)
 yhat2 <- predict(gbm_500_10_001_5, test_nolog, n.trees = 500) 
@@ -606,6 +606,8 @@ gbm_500_10_001_1 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli",
                         interaction.depth = 10, shrinkage = 0.01, cv.folds = 1)
 yhat11 <- predict(gbm_500_10_001_1, test_nolog, n.trees = 500) 
 t11<- table(ifelse(yhat11>0,1,0), test_nolog$mt50K)
+rocr_obj11 <- prediction(yhat11, test_nolog$mt50K)
+auc11 <- performance(rocr_obj11, "auc")@y.values[[1]]
 
 gbm_500_10_001_10 <- gbm(mt50K ~ . ,data=train_nolog, distribution = "bernoulli", n.trees = 500, 
                         interaction.depth = 10, shrinkage = 0.01, cv.folds = 10)
@@ -654,21 +656,32 @@ cdf2$race <- as.numeric(cdf2$race)
 cdf2$sex <- as.numeric(cdf2$sex)
 cdf2$nat_ctry <- as.numeric(cdf2$nat_ctry)
 cdf2$rnd <- NULL
-
+#cdf2$mt50K <- as.factor(cdf2$mt50K)
 train_nolog2 <- cdf2[0:round( nrow(cdf2) * 0.7 ),]
 test_nolog2 <- cdf2[(round( nrow(cdf2) * 0.7 )+1) : nrow(cdf2),]
 
+
+str(fit2)
+?knn
+?predict
 
 
 
 fit2 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 2, prob=TRUE)
 pander(table(test_nolog2$mt50K,fit2))
+prob<- attributes(fit2)$prob
+rocr_obj_2nn1 <- prediction(prob, test_nolog$mt50K)
+auc_2nn1 <- performance(rocr_obj_2nn1, "auc")@y.values[[1]]
 
 fit7 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 7, prob=TRUE)
 pander(table(test_nolog2$mt50K,fit7))
+prob7<- attributes(fit7)$prob
+rocr_obj_7nn1 <- prediction(prob7, test_nolog$mt50K)
+auc_7nn1 <- performance(rocr_obj_7nn1, "auc")@y.values[[1]]
 
 fit13 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 13, prob=TRUE)
 t13nn <- table(test_nolog2$mt50K,fit13)
-pander()
+prob13<- attributes(fit13)$prob
+rocr_obj_13nn1 <- prediction(prob13, test_nolog$mt50K)
+auc_13nn1 <- performance(rocr_obj_13nn1, "auc")@y.values[[1]]
 
-(t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100
