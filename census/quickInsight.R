@@ -670,14 +670,26 @@ str(fit2)
 fit2 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 2, prob=TRUE)
 pander(table(test_nolog2$mt50K,fit2))
 prob<- attributes(fit2)$prob
-rocr_obj_2nn1 <- prediction(prob, test_nolog$mt50K)
+rocr_obj_2nn1 <- prediction(ifelse(prob>0.5,1,0), test_nolog$mt50K)
 auc_2nn1 <- performance(rocr_obj_2nn1, "auc")@y.values[[1]]
 
 fit7 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 7, prob=TRUE)
 pander(table(test_nolog2$mt50K,fit7))
-prob7<- attributes(fit7)$prob
-rocr_obj_7nn1 <- prediction(prob7, test_nolog$mt50K)
+yhat_knn7 <- fit7@values
+
+prob  <- attr(fit7, "prob")
+prob <- 2*ifelse(fit7 == "-1", 1-prob, prob) - 1
+
+rocr_obj_7nn1 <- prediction(prob, test_nolog$mt50K)
 auc_7nn1 <- performance(rocr_obj_7nn1, "auc")@y.values[[1]]
+
+
+rocr_obj_gbm1 <- prediction(yhat, test_nolog$mt50K)
+auc_gbm1 <- performance(rocr_obj_gbm1, "auc")@y.values[[1]]
+
+str(rocr_obj_7nn1)
+
+?prediction
 
 fit13 <- knn(train_nolog2[,1:13], test_nolog2[,1:13], train_nolog2$mt50K, k = 13, prob=TRUE)
 t13nn <- table(test_nolog2$mt50K,fit13)
