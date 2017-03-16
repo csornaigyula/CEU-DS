@@ -17,13 +17,12 @@ classoption: landscape
 * Discuss which algorithms work best on your data and possibly why.
 * Bonus: Try the algorithms on the raw data without the cleaning. Are the results the same or worse?
 
-## Submitted modeling plan
+## Modeling contains
 
 * RF 
-* GBM
-* KNN
-* LogReg
-* Lasso
+* GBM with grid search
+* SVM with grid search
+
 
 ## Data and origin
 
@@ -251,6 +250,8 @@ multiplot(h1, h2, h3, h3B, h4, h4B, cols=3)
 
 ##### Work and occupation
 
+I expect work class to be a bad predictor (many categories, and most of the observation are in one category), occupation may be a relativel good one, because it does not have too many categories, and they are relatively homogenously populated.
+
 ```{r eda_work, echo=FALSE, warning=FALSE, fig.width=10}
 
 fb1 <- ggplot(cdf)+aes(x=work_class,fill=work_class)+
@@ -283,6 +284,8 @@ multiplot(fb1,  fb4, cols=2)
 
 ##### Education
 
+Education is expected to be a medium-low predictor, because many education categories are not populated well, all are in 3 major categories. Corner cases may not be easily predicted.
+
 ```{r eda_edu, echo=FALSE, fig.width=10}
 
 ggplot(cdf)+aes(x=education,fill=education)+
@@ -300,6 +303,13 @@ ggplot(cdf)+aes(x=education,fill=education)+
 ```
 
 ##### Personal data
+
+From the following charts we can learn the following:
+
+* Marital status may be a good candidate of strong predictor variable, because it has 2 major categories and a 3rd strong one. 
+* Race has a potential of not being a good predictor, because nealry all observations fall into the same category.
+* Relationships from the other side may be a strong predictor, because the distribution is less skewed, we habe multiple well populated categories
+* Sex may or may not be strong predictor, we have 2 categories only, and the dataset is unbalanced, we have twice as much males than females
 
 ```{r eda_pers, echo=FALSE, warning=FALSE, fig.width=10, fig.height=8}
 
@@ -354,6 +364,8 @@ multiplot(fb3,fb5, fb6, fb7, cols=2)
 
 ##### Original nationality
 
+The following charts show, that nearly all observations fall into the same category, the majority of observations point to US nationality. This will not be a very strong predictor feature, because this feature is true for nearly all observations.
+
 ```{r eda_nat, echo=FALSE, warning=FALSE, fig.width=10}
 
 fb8 <- ggplot(cdf)+aes(x=nat_ctry,fill=nat_ctry)+
@@ -388,6 +400,8 @@ multiplot(fb8, fb8B, cols=2)
 
 #### Wage category - the future prediction outcome
 
+The dataset is not balanced, we have nearly 3 times as many observations under 50,000 USD compared to the ones over 50,000USD. This means, that we cannot simply rely on error rate, because predicting only under 50,000 will produce 25% error rate.
+
 ```{r eda_y, echo=FALSE, warning=FALSE, fig.width=10}
 
 ggplot(cdf)+aes(x=mt50K,fill=mt50K)+
@@ -406,6 +420,16 @@ ggplot(cdf)+aes(x=mt50K,fill=mt50K)+
 ### Joint distributions of different variables
 
 #### Discrete variables
+
+When looking on joint distributions of discrete variables the following statements can be made:
+
+* surprisingly marital status seems to be a good segmenter because it has a quite inhomogenous distribution
+* occupation looks to be segmenting relatively poorly
+* level of education segments better
+* relationship segments better too
+* work class seems to be on the lower end
+
+This means, that whichever segments poorly will have a higher probability to predict badly in those tree models, where we are subsampling the variables.
 
 ```{r eda_jdisc, echo=FALSE, warning=FALSE, fig.width=10, fig.height=12}
 
@@ -458,6 +482,7 @@ multiplot(jd1, jd2, jd3, jd4, cols=2)
 
 ##### Dependencies between age and capital by sex
 
+The faceted charts below show, that if we try to differentiate between groups based on sex, both on capital gain and capital loss side the pattern will be relatively similar. This assumes that ses will not be a good predictor.
 
 ```{r eda_jcdist_sex,echo=FALSE, warning=FALSE, fig.width=10, fig.height=9}
 
@@ -492,6 +517,9 @@ multiplot(jdc1, jdc2, cols=1)
 
 ##### Dependencies between age and capital gain by work class
 
+The joint distribution between age, capital gain and working class shows, that capital gain and working class produce somewhat different  patterns, still the real differentiator is age. As shown above this is because the inbalance between the working class distributions - the majority of observations fall into private sector.
+
+
 ```{r eda_jdist_gain_workclass, echo=FALSE, warning=FALSE, fig.width=10, fig.height=9}
 ggplot(cdf)+aes(x=age, y=log(cap_gain+1))+
   geom_bin2d()+
@@ -509,6 +537,10 @@ ggplot(cdf)+aes(x=age, y=log(cap_gain+1))+
 
 ##### Dependencies between age and capital loss by work class
 
+The joint distribution between age, capital loss and working class shows, that capital loss and working class produce relatively similar patterns and the real differentiator is age.
+
+This means, that only age will be able to segment well in tree based algorythms, and in those cases where these 3 come together in the parameter selection, we will get poor prediction models.
+
 ```{r eda_jdist_loss_workclass, echo=FALSE, warning=FALSE, fig.width=10, fig.height=9}
 ggplot(cdf)+aes(x=age, y=log(cap_loss+1))+
   geom_bin2d()+
@@ -524,7 +556,19 @@ ggplot(cdf)+aes(x=age, y=log(cap_loss+1))+
 
 ```
 
-##### Dependencies between age and capital loss by education
+##### Dependencies between age and capital gain by education
+
+The following faceted charts plots the joint distribution between age, capital loss and education
+
+The  facet shows, that we can expect education to be a medium-good predictor together with capital gain, because from one side they segment the population to significantly different patterns, however the majority of the population shown on the heatmap with non-deep-blue colors are in 3 categories only:
+
+* HS-Grad
+* Some college
+* Bachelors
+
+Also we cannot expect significant capital gains in general in some low population degrees.
+
+Age is going to be a good segmenter, which will be important in tree-based methods.
 
 ```{r eda_jdist_gain_education, echo=FALSE, warning=FALSE, fig.width=10, fig.height=9}
 ggplot(cdf)+aes(x=age, y=log(cap_gain+1))+
@@ -543,6 +587,18 @@ ggplot(cdf)+aes(x=age, y=log(cap_gain+1))+
 
 ```
 
+##### Dependencies between age and capital loss by education
+
+The following faceted charts plots the joint distribution between age, capital loss and education
+
+The  facet shows, that we can expect education to be a medium-good predictor together with capital loss, because from one side they segment the population to somewhat different patterns, however the majority of the population shown on the heatmap with non-deep-blue colors are in 3 categories only:
+
+* HS-Grad
+* Some college
+* Bachelors
+
+From the other age here is still going to be a good segmenter, which will be important in tree-based methods.
+
 ```{r eda_jdist_loss_education, echo=FALSE, warning=FALSE, fig.width=10, fig.height=9}
 
 ggplot(cdf)+aes(x=age, y=log(cap_loss+1))+
@@ -550,7 +606,7 @@ ggplot(cdf)+aes(x=age, y=log(cap_loss+1))+
   scale_fill_gradientn(limits=c(900,0),  colours=rainbow(4))+
   facet_wrap(~education)+
   labs(
-    title='Joint distribution of age and capital gain',
+    title='Joint distribution of age and capital loss',
     subtitle='Faceted by education',
     y='Capital loss\non log scale',
     x='Age'
@@ -749,7 +805,7 @@ auc6 <- performance(rocr_obj6, "auc")@y.values[[1]]
 
 ##### Kernel density functions
 
-The kernel density functions show the probability density of the 2 predictions based on scores.
+The kernel density functions show the probability density of the 2 predictions based on scores. Visually there is no significant difference on the following 6 analyzed charts, it shows, that it will give 0 score with a very high probability density (it will identify negative examples well), however positive examples it will classify with a much higher error, there will be quite numerous with low score even if the predicted variable is 12. We need to expect a lot of false negatives (the numbers in the model versions shows the same impact).
 
 ```{r mod_rf_variants_kd, echo=FALSE, fig.width=10, fig.height=8}
 
@@ -819,6 +875,8 @@ multiplot(kdplot1, kdplot2, kdplot3, kdplot4, kdplot5, kdplot6, cols = 3)
 
 ##### Importance of variables
 
+After the first supervised analysis we can conclude, that relationship, capital gain (both level and log) and age are the most important predictors in all models, while native country, sex and race are not. This was somewhat expected from the distribution charts, however I expected occupation being in the top 3. There is also a surprising difference between the role of capital gain and capital loss, which was somewhat expected but not in this extent.
+
 
 ```{r mod_rf_variants_imp, echo=FALSE, fig.width=10, fig.height=8}
 par(mfrow=c(2,3))
@@ -843,6 +901,13 @@ varImpPlot(rfmod_t500l5, type=2)
 ### Analysis with GBM
 
 Before modeling it is important to transform the output variable to number, because GBM can use numbers only.
+
+GBM is the most sensitive model, when it comes to overfitting, but also promises the best performance in case used correctly.
+
+Because of this there are 2 parameters I will primarily focus on:
+
+* Interaction depth: the dept of the trees 
+* shrinkage: regularization parameter to control the gradient descent on error function surface.
 
 ```{r setup_gbm, echo=FALSE, include=FALSE, warning=FALSE}
 
@@ -881,7 +946,7 @@ pander(table(ifelse(yhat>0,1,0), test_nolog$mt50K))
 
 ##### Learning curve
 
-```{r gbm_promary_pcurve, echo=FALSE, warning=FALSE}
+```{r gbm_promary_pcurve, echo=FALSE, warning=FALSE, message=FALSE}
 gbm.perf(gbm_p1, plot.it = TRUE)
 
 ```
@@ -998,7 +1063,141 @@ The following chart shows the impact of changing the folds of cross validation f
 |gbm_500_20_001_10|500          |20                |0.01     |10|`r t12[1,1]`|`r t12[1,2]`|`r t12[2,1]`|`r t12[2,2]`|`r auc_gbm12`|
 |gbm_500_20_001_3|500           |20                |0.01     |3 |`r t13[1,1]`|`r t13[1,2]`|`r t13[2,1]`|`r t13[2,2]`|`r auc_gbm13`|
 
-### Analysis with KNN
+### Analysis with SVM
+
+For support vector modeling classification the main direction was trying to fing appropriate gamma and cost parameters. SVM uses a certain step function (sigmoid, exponential) for prediction.
+Here gamma is the input parameter for non-linear kernel with 1/(data dimension) default value and cost is a regularization parameter with default value 1.
+
+For all models above I used radial kernel.
+
+My expectation fr SVM were robustness, but somewhat lower accuracy.
+
+```{r svm_setup, echo=FALSE,  warning=FALSE}
+library(e1071)
+set.seed(123)
+
+svm_base <- svm(mt50K ~ ., data = train_nolog,
+          kernel = "radial", gamma = 1/(ncol(train_nolog)-1), cost = 1)
+
+yhat_svm1 <- predict(svm_base, newdata = test_nolog)
+perr_svm1 <- sum(as.numeric(yhat_svm1)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm1<- table(ifelse(as.numeric(yhat_svm1)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm1 <- prediction(as.numeric(yhat_svm1)-1, test_nolog$mt50K)
+auc_svm1 <- performance(rocr_obj_svm1, "auc")@y.values[[1]]
+```
+
+#### Primary model
+
+The parameters of the primary model were:
+
+* radial kernel 
+* gamma = 1 / 13 ~ 0.07692308
+* cost=1 
+
+This resulted `r perr_svm1*100`% overall prediction error and `r auc_svm1` AUC.
+
+#### Grid search
+
+```{r svm_grid_srch2, echo=FALSE,  warning=FALSE}
+
+svm_2 <- svm(mt50K ~ ., data = train_nolog,
+                kernel = "radial", gamma = 2^-7, cost = 2)
+yhat_svm2 <- predict(svm_2, newdata = test_nolog)
+perr_svm2 <-sum(as.numeric(yhat_svm2)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm2<- table(ifelse(as.numeric(yhat_svm2)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm2 <- prediction(as.numeric(yhat_svm2)-1, test_nolog$mt50K)
+auc_svm2 <- performance(rocr_obj_svm2, "auc")@y.values[[1]]
+
+```
+
+```{r svm_grid_srch3, echo=FALSE,  warning=FALSE}
+svm_3 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, cost = 2)
+yhat_svm3 <- predict(svm_3, newdata = test_nolog)
+perr_svm3 <- sum(as.numeric(yhat_svm3)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm3<- table(ifelse(as.numeric(yhat_svm3)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm3 <- prediction(as.numeric(yhat_svm3)-1, test_nolog$mt50K)
+auc_svm3 <- performance(rocr_obj_svm3, "auc")@y.values[[1]]
+
+```
+
+```{r svm_grid_srch4, echo=FALSE,  warning=FALSE}
+svm_4 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-1, cost = 2)
+yhat_svm4 <- predict(svm_4, newdata = test_nolog)
+perr_svm4 <- sum(as.numeric(yhat_svm4)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm4<- table(ifelse(as.numeric(yhat_svm4)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm4 <- prediction(as.numeric(yhat_svm4)-1, test_nolog$mt50K)
+auc_svm4 <- performance(rocr_obj_svm4, "auc")@y.values[[1]]
+```
+
+```{r svm_grid_srch5, echo=FALSE,  warning=FALSE}
+svm_5 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, cost = 1)
+yhat_svm5 <- predict(svm_5, newdata = test_nolog)
+perr_svm5 <- sum(as.numeric(yhat_svm5)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm5<- table(ifelse(as.numeric(yhat_svm5)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm5 <- prediction(as.numeric(yhat_svm5)-1, test_nolog$mt50K)
+auc_svm5 <- performance(rocr_obj_svm5, "auc")@y.values[[1]]
+```
+
+```{r svm_grid_srch6, echo=FALSE,  warning=FALSE}
+svm_6 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, epsilon = 0.2)
+yhat_svm6 <- predict(svm_6, newdata = test_nolog)
+perr_svm6 <- sum(as.numeric(yhat_svm6)-1!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm6<- table(ifelse(as.numeric(yhat_svm6)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm6 <- prediction(as.numeric(yhat_svm6)-1, test_nolog$mt50K)
+auc_svm6 <- performance(rocr_obj_svm6, "auc")@y.values[[1]]
+```
+
+|ModelID |kernel|Gamma|cost|epsilon|error rate|Result TN|Result FN|Result FP|Result TP|AUC|
+|:------:|:----:|:---:|:--:|:-----:|:--------:|:-------:|:-------:|:-------:|:-------:|:-:|
+|base smv|radial|1/13=0.07692308|1|default=0.1|`r perr_svm1`|`r tsvm1[1,1]`|`r tsvm1[1,2]`|`r tsvm1[2,1]`|`r tsvm1[2,2]`|`r auc_svm1`|
+|smv2|radial|2^-7=0.0078125|2|default=0.1|`r perr_svm2`|`r tsvm2[1,1]`|`r tsvm2[1,2]`|`r tsvm2[2,1]`|`r tsvm2[2,2]`|`r auc_svm2`|
+|smv3|radial|2^-3=0.125|2|default=0.1|`r perr_svm3`|`r tsvm3[1,1]`|`r tsvm3[1,2]`|`r tsvm3[2,1]`|`r tsvm3[2,2]`|`r auc_svm3`|
+|smv4|radial|2^-1=0.5|2|default=0.1|`r perr_svm4`|`r tsvm4[1,1]`|`r tsvm4[1,2]`|`r tsvm4[2,1]`|`r tsvm4[2,2]`|`r auc_svm4`|
+|smv5|radial|2^-3=0.125|1|default=0.1|`r perr_svm5`|`r tsvm5[1,1]`|`r tsvm5[1,2]`|`r tsvm5[2,1]`|`r tsvm5[2,2]`|`r auc_svm5`|
+|smv5|radial|2^-3=0.125|default=1|0.2|`r perr_svm6`|`r tsvm6[1,1]`|`r tsvm6[1,2]`|`r tsvm6[2,1]`|`r tsvm6[2,2]`|`r auc_svm6`|
+
+## Model selection
+
+* All 3 models have produced relatively good resutls during the modeling on this classification use-case on this dataset
+* GBM with appropriate parametering has performed a little better in terms of error rate
+* My GBM and Random forest models have produced more false positives
+* SVM had a very narrow range of AUC results, lower AUC than GBM, but still comparable to random forest
+* The parametering of GBM and Random Forest are more intuitve than SVM, SVM reveals the very high mathematical complexity the modeller ought to know - without providing significantly higher payback in performance.
+* The model selection would depend on the use case, specifically
+  + The expected true positive/false positive ratio
+  + The cost of false positive vs false negative 
+  + The environment where the prediction needs to be executed
+  
+|Best model of genere with parameters       |Error rate/AUC                         |FN/FP ratio            |TP/FP ratio             |
+|:-----------------------------------------:|:---------------------------------:|:---------------------:|:----------------------:|
+|RF, ntree=500, cap.log, variable=3         |AUC =`r auc3` |`r rft3[1,2]/rft3[2,1]`|`r rft3[2,2]/rft3[2,1]` |
+|GBM, ntree=500, int.depth=20, shrinkage=0.01, cv =5fold|AUC= `r auc_gbm4`|`r t4[1,2]/t4[2,1]`|`r t4[2,2]/t4[2,1]` |
+|SVM2, kernel=radial, gamma=1/2^7, cost=2, epsilon=0.1|AUC= `r auc_svm2`|`r tsvm2[1,2]/ tsvm2[2,1]`|`r tsvm2[2,2]/ tsvm2[2,1]`||
+
+
+## Discussion of effectiveness
+
+* Random forest was a bit inaccurate, but was able to run on the dataset without issues (note: no factors have exceeded 53, which is RF limitation)
+* GBM was the most accurate, but the cost was more feature engineering and in some cases model was not able to predict positive outcome
+* SVM has very robust results, but the accuracy is lower, than GBM
+* The price SVM and Random Forest pays in accuracy pays back in ranfom rorest inability to overfit and SVM also being a robust, not overfitting model.
+
+
+## Appendix
+
+### Notes about grid search based SVM tuning
+
+I used manual grid search for all models instead of tune.svm or tune.randomForest. I gave an attempt to these software aider more detailed ones, but the modeling of the 5x5 or 7x7 models in case of SVM took such a long time (4+ hours) that I aborted them. I clearly reached a limitation of my local computer (Intel Core i5-6200U CPU @ 2.3GHz). This would have needed running on a stronger server.
+
+### Notes about the performance
+
+There is a possibility, that I could have achieved better performance model with ensembles. This however in time shortage I have not given an attempt in the scope of this project.
+
+### Analysis with KNN 
 
 K-NearestNeighbour classification algorythm is a bit different from the tree models above, because it can handle only numeric input vectors. It uses Eucledian distance measure thereafter to calculate the "distance of the neighborhood".
 From the other side it uses a factor for classification.
@@ -1071,28 +1270,9 @@ The following chart shows the results of the models. 2 neighbours show a higher 
 |7                  |`r t7nn[1,1]` |`r t7nn[1,1]` |`r t7nn[1,1]`|`r t7nn[1,1]`|`r (t7nn[1,2]+t7nn[2,1])/nrow(test_nolog)*100`% |
 |13                 |`r t13nn[1,1]`|`r t13nn[1,1]`|`r t13nn[1,1]`|`r t13nn[1,1]`|`r (t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100`% |
 
-## Model selection
+### Reason of exluding from modeling
 
-* All 3 models have produced relatively good resutls during the modeling on this classification use-case on this dataset
-* GBM with appropriate parametering has performed a little better in terms of error rate
-* My GBM and Random forest models have produced more false positives, KNN has produced more false negatives in general
-* The model selection would depend on the use case, specifically
-  + The expected true positive/false positive ratio
-  + The cost of false positive vs false negative 
-  + The environment where the prediction needs to be executed
-  
-|Best model of genere with parameters       |Error rate/AOC                         |FN/FP ratio            |TP/FP ratio             |
-|:-----------------------------------------:|:---------------------------------:|:---------------------:|:----------------------:|
-|RF, ntree=500, cap.log, variable=3         |AUC =`r auc3` |`r rft3[1,2]/rft3[2,1]`|`r rft3[2,2]/rft3[2,1]` |
-|GBM, ntree=500, int.depth=20, shrinkage=0.01, cv =5fold|AUC= `r auc_gbm4`|`r t4[1,2]/t4[2,1]`|`r t4[2,2]/t4[2,1]` |
-|KNN, n=13         |`r (t13nn[1,2]+t13nn[2,1])/nrow(test_nolog)*100`%  |`r t13nn[1,2]/t13nn[2,1]`|`r t13nn[2,2]/t7nn[2,1]` |
-
-
-## Discussion of effectiveness
-
-* Random forest was a bit inaccurate, but was able to run on the dataset without issues (note: no factors have exceeded 53, which is RF limitation)
-* GBM was the most accurate, but the cost was more feature engineering and in some cases model was not able to predict positive outcome
-* KNN was the fastest to give results, but I did not run into issues with the distance measures
+I decided excluding KNN from modeling because I was not able to calculate AUC for some technical reasons. KNN produces 
 
 
 

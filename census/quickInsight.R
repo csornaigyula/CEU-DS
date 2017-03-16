@@ -531,6 +531,8 @@ mod_rf_t500_nolog_var5_errorrate <- sum(ifelse(phat5>0.5,1,0)!=test_nolog$mt50K)
 rocr_obj5 <- prediction(phat5, test_nolog$mt50K)
 auc5 <- performance(rocr_obj5, "auc")@y.values[[1]] 
 
+str(phat5)
+
 #Random forest on log, 500 trees, 5 variables
 rfmod_t500l5 <- randomForest(mt50K ~ .,data=train_log,ntree=500, mtry=5, importance=TRUE)
 #Model details
@@ -697,3 +699,87 @@ prob13<- attributes(fit13)$prob
 rocr_obj_13nn1 <- prediction(prob13, test_nolog$mt50K)
 auc_13nn1 <- performance(rocr_obj_13nn1, "auc")@y.values[[1]]
 
+
+library(e1071)
+set.seed(123)
+
+#rfmod_t100l <- randomForest(mt50K ~ .,data=train_log,ntree=100, importance=TRUE)
+#phat5 <- predict(rfmod_t500n5, test_nolog, type = "prob")[,"1"]
+#pander(table(ifelse(phat5>0.5,1,0),test_nolog$mt50K))
+#mod_rf_t500_nolog_var5_errorrate <- sum(ifelse(phat5>0.5,1,0)!=test_nolog$mt50K)/nrow(test_nolog)
+#rocr_obj5 <- prediction(phat5, test_nolog$mt50K)
+#auc5 <- performance(rocr_obj5, "auc")@y.values[[1]] 
+
+?svm
+svm_base <- svm(mt50K ~ ., data = train_nolog,
+          kernel = "radial", gamma = 1/(ncol(train_nolog)-1), cost = 1)
+
+yhat_svm1 <- predict(svm_base, newdata = test_nolog)
+sum(yhat_svm1!=test_nolog$mt50K)/nrow(test_nolog)
+
+rocr_obj_svm1 <- prediction(as.numeric(yhat_svm1)-1, test_nolog$mt50K)
+auc_svm1 <- performance(rocr_obj_svm1, "auc")@y.values[[1]]
+
+
+#gamma = 2^seq(-7,-3,2), cost = 2^seq(1,5,2))
+svm_2 <- svm(mt50K ~ ., data = train_nolog,
+                kernel = "radial", gamma = 2^-7, cost = 2)
+yhat_svm2 <- predict(svm_2, newdata = test_nolog)
+sum(yhat_svm2!=test_nolog$mt50K)/nrow(test_nolog)
+
+rocr_obj_svm2 <- prediction(as.numeric(yhat_svm2)-1, test_nolog$mt50K)
+auc_svm2 <- performance(rocr_obj_svm2, "auc")@y.values[[1]]
+auc_svm2
+
+
+svm_3 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, cost = 2)
+yhat_svm3 <- predict(svm_3, newdata = test_nolog)
+sum(yhat_svm3!=test_nolog$mt50K)/nrow(test_nolog)
+tsvm3<- table(ifelse(as.numeric(yhat_svm3)-1>0,1,0), test_nolog$mt50K)
+rocr_obj_svm3 <- prediction(as.numeric(yhat_svm3)-1, test_nolog$mt50K)
+auc_svm3 <- performance(rocr_obj_svm3, "auc")@y.values[[1]]
+auc_svm3
+
+svm_4 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-1, cost = 2)
+yhat_svm4 <- predict(svm_4, newdata = test_nolog)
+sum(yhat_svm4!=test_nolog$mt50K)/nrow(test_nolog)
+rocr_obj_svm4 <- prediction(as.numeric(yhat_svm4)-1, test_nolog$mt50K)
+auc_svm4 <- performance(rocr_obj_svm4, "auc")@y.values[[1]]
+auc_svm4
+
+svm_5 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, cost = 1)
+yhat_svm5 <- predict(svm_5, newdata = test_nolog)
+sum(yhat_svm5!=test_nolog$mt50K)/nrow(test_nolog)
+rocr_obj_svm5 <- prediction(as.numeric(yhat_svm5)-1, test_nolog$mt50K)
+auc_svm5 <- performance(rocr_obj_svm5, "auc")@y.values[[1]]
+auc_svm5
+
+svm_6 <- svm(mt50K ~ ., data = train_nolog,
+             kernel = "radial", gamma = 2^-3, epsilon = 0.2)
+yhat_svm6 <- predict(svm_6, newdata = test_nolog)
+sum(yhat_svm6!=test_nolog$mt50K)/nrow(test_nolog)
+rocr_obj_svm6 <- prediction(as.numeric(yhat_svm6)-1, test_nolog$mt50K)
+auc_svm6 <- performance(rocr_obj_svm6, "auc")@y.values[[1]]
+auc_svm6
+
+# grid search
+system.time({
+  svm_base_grid <- tune.svm(mt50K ~ ., data = train_nolog,
+                  gamma = 10^(-1:1), cost = 10^(-1:1), 
+                  tunecontrol = tune.control(cross = 5))
+})
+
+?tune.svm
+
+mds
+summary(mds)
+names(mds)
+round(xtabs(error ~ gamma + cost, mds$performances)*100,2)
+class(mds$best.model)
+class(mds)
+
+yhat <- predict(mds$best.model, newdata = d_test)
+sum(yhat!=d_test$spam)/nrow(d_test)
